@@ -1,3 +1,6 @@
 {
-    "queue": "satellite5"
+    "queue": "satellite5",
+    "satellite_url": "https://satellite.example.com/rpc/api",
+    "satellite_login": "username",
+    "satellite_password": "password"
 }
