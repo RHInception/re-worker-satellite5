@@ -96,6 +96,7 @@ class TestSat5Worker(TestCase):
         self.connection.reset_mock()
 
     def test_verify_satellite_config_good(self):
+        """We can identify a valid config file"""
         with nested(
                 mock.patch('pika.SelectConnection'),
                 mock.patch('replugin.satellite5worker.Satellite5Worker.notify'),
@@ -111,6 +112,7 @@ class TestSat5Worker(TestCase):
             self.assertTrue(config_good)
 
     def test_verify_satellite_config_bad(self):
+        """We can identify an invalid config file"""
         with nested(
                 mock.patch('pika.SelectConnection'),
                 mock.patch('replugin.satellite5worker.Satellite5Worker.notify'),
@@ -318,10 +320,6 @@ class TestSat5Worker(TestCase):
 
             self.assertTrue(found_channels)
 
-            # TODO:
-            #
-            # verify the call args
-
     def test_verify_source_channel_bad(self):
         """We notice when source/dest channels don't exist"""
         key = "sessionKeyString"
@@ -355,9 +353,6 @@ class TestSat5Worker(TestCase):
                 found_channels = worker.verify_Promote_channels(client, key,
                                                                 'sourcechannel',
                                                                 'destchannel')
-            # TODO:
-            #
-            # verify the call args
 
     def test_merge_packages_good(self):
         """We can merge channels properly"""
@@ -392,7 +387,7 @@ class TestSat5Worker(TestCase):
             worker._on_channel_open(self.channel)
 
             result = worker.do_Promote_channel_merge(client, key,
-                                            'sourcechannel', 'destchannel')
+                                                     'sourcechannel', 'destchannel')
             # one package was 'promoted'
             self.assertEqual(result, 1)
             mergePackages.assert_called_once_with('sourcechannel', 'destchannel')
@@ -432,7 +427,7 @@ class TestSat5Worker(TestCase):
             with self.assertRaises(satellite5worker.Satellite5WorkerError):
                 result = worker.do_Promote_channel_merge(client, key,
                                                          'sourcechannel', 'destchannel')
-            mergePackages.assert_called_once_with('sourcechannel', 'destchannel')
+                mergePackages.assert_called_once_with('sourcechannel', 'destchannel')
 
     def test_close_client_good(self):
         """We can successfully close the client connection"""
@@ -491,3 +486,79 @@ class TestSat5Worker(TestCase):
                 result = worker.close_client(client, session_string)
 
             logout.asser_called_once_with(session_string)
+
+    @mock.patch('replugin.satellite5worker.Satellite5Worker.open_client')
+    @mock.patch('replugin.satellite5worker.Satellite5Worker.do_Promote_channel_merge')
+    def test_process_good(self, merge, client):
+        """The main process method runs notifications when completed"""
+        merge.return_value = 1
+        client.return_value = ("client", "key")
+
+        with nested(
+                mock.patch('pika.SelectConnection'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.notify'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.send'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.verify_config'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.verify_subcommand'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.verify_Promote_params'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.verify_Promote_channels'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.close_client')):
+
+            worker = satellite5worker.Satellite5Worker(
+                MQ_CONF,
+                logger=self.app_logger,
+                config_file='conf/satellite5.json')
+            worker._on_open(self.connection)
+            worker._on_channel_open(self.channel)
+
+            output = mock.Mock()
+            body = {
+                'parameters': {
+                    'command': 'satellite5',
+                    'subcommand': 'Promote'
+                },
+                'dynamic': {
+                    'promote_from_label': 'sourcechannel',
+                    'promote_to_label': 'destchannel'
+                }
+            }
+            worker.process(self.channel, self.basic_deliver, self.properties,
+                           body, output)
+
+    @mock.patch('replugin.satellite5worker.Satellite5Worker.open_client')
+    @mock.patch('replugin.satellite5worker.Satellite5Worker.do_Promote_channel_merge')
+    def test_process_bad(self, merge, client):
+        """We notice when there's an error while process()ing"""
+        merge.side_effect = satellite5worker.Satellite5WorkerError("Couldn't merge")
+        client.return_value = ("client", "key")
+
+        with nested(
+                mock.patch('pika.SelectConnection'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.notify'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.send'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.verify_config'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.verify_subcommand'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.verify_Promote_params'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.verify_Promote_channels'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.close_client')):
+
+            worker = satellite5worker.Satellite5Worker(
+                MQ_CONF,
+                logger=self.app_logger,
+                config_file='conf/satellite5.json')
+            worker._on_open(self.connection)
+            worker._on_channel_open(self.channel)
+
+            output = mock.Mock()
+            body = {
+                'parameters': {
+                    'command': 'satellite5',
+                    'subcommand': 'Promote'
+                },
+                'dynamic': {
+                    'promote_from_label': 'sourcechannel',
+                    'promote_to_label': 'destchannel'
+                }
+            }
+            worker.process(self.channel, self.basic_deliver, self.properties,
+                           body, output)

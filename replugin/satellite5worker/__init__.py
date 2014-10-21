@@ -149,6 +149,23 @@ Returns the count of the number of packages promoted"""
         self.ack(basic_deliver)
         corr_id = str(properties.correlation_id)
 
+        self.app_logger.info("New promotion starting now")
+        # Tell the FSM that we're starting now
+        self.send(
+            properties.reply_to,
+            corr_id,
+            {'status': 'started'},
+            exchange=''
+        )
+
+        self.notify(
+            "Satellite 5 Worker beginning promotion",
+            "Satellite 5 Worker beginning promotion",
+            'started',
+            corr_id
+        )
+        output.info("New promotion starting now")
+
         try:
             # Load up the config variables from the json file
             self.verify_config(self._config)
@@ -163,8 +180,8 @@ Returns the count of the number of packages promoted"""
             (client, key) = self.open_client(self._config)
 
             # Verify source and target channels exist
-            source_channel = body['parameters']['promote_from_label']
-            dest_channel = body['parameters']['promote_to_label']
+            source_channel = body['dynamic']['promote_from_label']
+            dest_channel = body['dynamic']['promote_to_label']
             self.verify_Promote_channels(client, key, source_channel, dest_channel)
 
             # Merge contents of source into target
@@ -173,29 +190,24 @@ Returns the count of the number of packages promoted"""
             # Logout
             self.close_client(client, key)
 
-            # Return result
-            #
-            #
-            # TODO: Note how many packages were promoted!
-            #
-
-            self.app_logger.info("Merged packages from '%s' into '%s'" %
-                                 (source_channel, dest_channel))
+            self.app_logger.info("Promoted %s packages from '%s' into '%s'" %
+                                 (result, source_channel, dest_channel))
             self.send(
                 properties.reply_to,
                 corr_id,
-                {'status': 'completed'},
+                {'status': 'completed', 'data': {'count': result}},
                 exchange=''
             )
             # Notify over various other comm channels about the result
             self.notify(
                 'Satellite 5 Worker completed',
-                str(s5we),
+                '%s packages promoted' % result,
                 'completed',
                 corr_id)
 
             # Output to the general logger (taboot tailer perhaps)
-            output.info('Satellite 5 worker finished promoting channel contents')
+            output.info('Satellite 5 worker finished promoting channel '
+                        'contents (count: %s)' % result)
 
         except Satellite5WorkerError, s5we:
             # If an error happens send a failure and log it to stdout
