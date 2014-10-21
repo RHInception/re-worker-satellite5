@@ -102,7 +102,7 @@ class TestSat5Worker(TestCase):
             worker._on_channel_open(self.channel)
 
             config_good = worker.verify_config(self.config_good)
-            self.assertEqual(config_good, True)
+            self.assertTrue(config_good)
 
     def test_verify_satellite_config_bad(self):
         with nested(
@@ -117,7 +117,7 @@ class TestSat5Worker(TestCase):
             worker._on_channel_open(self.channel)
 
             config_bad = worker.verify_config(self.config_bad)
-            self.assertEqual(config_bad, False)
+            self.assertFalse(config_bad)
 
     def test_verify_subcommand_good(self):
         """Verify we can detect good subcommands"""
@@ -138,7 +138,7 @@ class TestSat5Worker(TestCase):
             worker._on_channel_open(self.channel)
 
             result_good = worker.verify_subcommand(good_params)
-            self.assertEqual(result_good, True)
+            self.assertTrue(result_good)
 
     def test_verify_subcommand_bad(self):
         """Verify we can detect bad subcommands"""
@@ -161,8 +161,47 @@ class TestSat5Worker(TestCase):
             with self.assertRaises(satellite5worker.Satellite5WorkerError):
                 result_bad = worker.verify_subcommand(bad_params)
 
-    def test_verify_subcommand_parameters(self):
-        pass
+    def test_verify_subcommand_parameters_good(self):
+        """We are able to identify correct parameters"""
+        good_dynamic_params = {
+            'promote_from_label': 'test01',
+            'promote_to_label': 'test02'
+        }
+
+        with nested(
+                mock.patch('pika.SelectConnection'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.notify'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.send')):
+
+            worker = satellite5worker.Satellite5Worker(
+                MQ_CONF,
+                logger=self.app_logger)
+            worker._on_open(self.connection)
+            worker._on_channel_open(self.channel)
+
+            result_good = worker.verify_Promote_params(good_dynamic_params)
+            self.assertTrue(result_good)
+
+    def test_verify_subcommand_parameters_bad(self):
+        """We are able to identify incorrect parameters"""
+        bad_dynamic_params = {
+            'badkey': 'herp',
+            'badderkey': 'derp'
+        }
+
+        with nested(
+                mock.patch('pika.SelectConnection'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.notify'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.send')):
+
+            worker = satellite5worker.Satellite5Worker(
+                MQ_CONF,
+                logger=self.app_logger)
+            worker._on_open(self.connection)
+            worker._on_channel_open(self.channel)
+
+            with self.assertRaises(satellite5worker.Satellite5WorkerError):
+                result_bad = worker.verify_Promote_params(bad_dynamic_params)
 
     def test_open_xmlrpc_connection(self):
         pass

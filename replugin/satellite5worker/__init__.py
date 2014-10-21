@@ -76,7 +76,7 @@ Promote parameters.
         for key in self.dynamic:
             if key not in params:
                 # Required key not provided
-                return False
+                raise Satellite5WorkerError("A required key was not provided: %s" % key)
 
         # Got everything we need
         return True
@@ -117,7 +117,7 @@ Promote parameters.
             self.verify_subcommand(body['parameters'])
 
             # Verify subcmd parameters
-            self.verify_Promote_params(body['parameters'])
+            self.verify_Promote_params(body['dynamic'])
 
             # Open connection to remote server and log into it
             (client, key) = self.open_client(self._config)
