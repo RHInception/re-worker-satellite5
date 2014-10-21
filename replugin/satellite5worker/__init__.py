@@ -83,7 +83,16 @@ Promote parameters.
 
     def open_client(self, config):
         """Create an XMLRPC client to communicate to the Satellite server with"""
-        pass
+        try:
+            client = xmlrpclib.Server(config['satellite_url'])
+            # print client
+            key = client.auth.login(config['satellite_login'], config['satellite_password'])
+            # print key
+        except xmlrpclib.Fault, fault:
+            raise Satellite5WorkerError("Error connecting to Satellite server: %s" %
+                                        str(fault))
+        else:
+            return (client, key)
 
     def verify_Promote_channels(self, client, key, source, destination):
         """Make sure the source and destination channels both exist"""
