@@ -119,8 +119,47 @@ class TestSat5Worker(TestCase):
             config_bad = worker.verify_config(self.config_bad)
             self.assertEqual(config_bad, False)
 
-    def test_verify_subcommand(self):
-        pass
+    def test_verify_subcommand_good(self):
+        """Verify we can detect good subcommands"""
+        good_params = {
+            'command': 'satellite5',
+            'subcommand': 'Promote'
+        }
+
+        with nested(
+                mock.patch('pika.SelectConnection'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.notify'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.send')):
+
+            worker = satellite5worker.Satellite5Worker(
+                MQ_CONF,
+                logger=self.app_logger)
+            worker._on_open(self.connection)
+            worker._on_channel_open(self.channel)
+
+            result_good = worker.verify_subcommand(good_params)
+            self.assertEqual(result_good, True)
+
+    def test_verify_subcommand_bad(self):
+        """Verify we can detect bad subcommands"""
+        bad_params = {
+            'command': 'satellite5',
+            'subcommand': 'Demote'
+        }
+
+        with nested(
+                mock.patch('pika.SelectConnection'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.notify'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.send')):
+
+            worker = satellite5worker.Satellite5Worker(
+                MQ_CONF,
+                logger=self.app_logger)
+            worker._on_open(self.connection)
+            worker._on_channel_open(self.channel)
+
+            with self.assertRaises(satellite5worker.Satellite5WorkerError):
+                result_bad = worker.verify_subcommand(bad_params)
 
     def test_verify_subcommand_parameters(self):
         pass

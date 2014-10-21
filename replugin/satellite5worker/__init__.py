@@ -59,8 +59,8 @@ class Satellite5Worker(Worker):
     def verify_subcommand(self, parameters):
         """Verify we were supplied with a valid subcommand"""
         subcmd = parameters.get('subcommand', None)
-        if subcmd not in self.self.subcommands:
-            return False
+        if subcmd not in self.subcommands:
+            raise Satellite5WorkerError("Invalid subcommand provided: %s" % subcmd)
         else:
             return True
 
@@ -128,11 +128,35 @@ Promote parameters.
             self.verify_Promote_channels(client, key, source_channel, dest_channel)
 
             # Merge contents of source into target
-            self.do_Promote_channel_merge(client, key, source_channel, dest_channel)
+            result = self.do_Promote_channel_merge(client, key, source_channel, dest_channel)
 
             # Logout
             self.close_client(client, key)
+
             # Return result
+            #
+            #
+            # TODO: Note how many packages were promoted!
+            #
+
+            self.app_logger.info("Merged packages from '%s' into '%s'" %
+                                 (source_channel, dest_channel))
+            self.send(
+                properties.reply_to,
+                corr_id,
+                {'status': 'completed'},
+                exchange=''
+            )
+            # Notify over various other comm channels about the result
+            self.notify(
+                'Satellite 5 Worker completed',
+                str(s5we),
+                'completed',
+                corr_id)
+
+            # Output to the general logger (taboot tailer perhaps)
+            output.info('Satellite 5 worker finished promoting channel contents')
+
 
         except Satellite5WorkerError, s5we:
             # If an error happens send a failure and log it to stdout
