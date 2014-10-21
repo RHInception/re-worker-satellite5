@@ -275,11 +275,73 @@ class TestSat5Worker(TestCase):
             with self.assertRaises(satellite5worker.Satellite5WorkerError):
                 (client, key) = worker.open_client(self.config_auth_bad)
 
-    def test_verify_source_channel_good(self):
-        pass
+    def test_verify_Promote_channels_good(self):
+        """We're able to find the source and destination channels"""
+        key = "sessionKeyString"
+        client = mock.MagicMock()
+
+        # client.channel
+        channel = mock.MagicMock()
+        client.channel = channel
+
+        # client.channel.software
+        software = mock.MagicMock()
+        channel.software = software
+
+        # client.channel.software.getDetails()
+        getDetails = mock.Mock(return_value={})
+        software.getDetails = getDetails
+
+        with nested(
+                mock.patch('pika.SelectConnection'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.notify'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.send')):
+
+            worker = satellite5worker.Satellite5Worker(
+                MQ_CONF,
+                logger=self.app_logger)
+            worker._on_open(self.connection)
+            worker._on_channel_open(self.channel)
+
+            found_channels = worker.verify_Promote_channels(client, key,
+                                                            'sourcechannel',
+                                                            'destchannel')
+
+            self.assertTrue(found_channels)
 
     def test_verify_source_channel_bad(self):
-        pass
+        """We notice when source/dest channels don't exist"""
+        key = "sessionKeyString"
+        client = mock.MagicMock()
+
+        # client.channel
+        channel = mock.MagicMock()
+        client.channel = channel
+
+        # client.channel.software
+        software = mock.MagicMock()
+        channel.software = software
+
+        # client.channel.software.getDetails()
+        getDetails = mock.Mock(return_value={})
+        getDetails.side_effect = xmlrpclib.Fault(12345, 'Could not locate channel')
+        software.getDetails = getDetails
+
+        with nested(
+                mock.patch('pika.SelectConnection'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.notify'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.send')):
+
+            worker = satellite5worker.Satellite5Worker(
+                MQ_CONF,
+                logger=self.app_logger)
+            worker._on_open(self.connection)
+            worker._on_channel_open(self.channel)
+
+            with self.assertRaises(satellite5worker.Satellite5WorkerError):
+                found_channels = worker.verify_Promote_channels(client, key,
+                                                                'sourcechannel',
+                                                                'destchannel')
 
     def test_merge_packages_good(self):
         pass

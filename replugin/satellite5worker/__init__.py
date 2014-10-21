@@ -94,13 +94,28 @@ Promote parameters.
                                             str(fault))
             else:
                 raise Satellite5WorkerError("Error connecting to the Satellite server: %s" %
-                            str(fault))
+                                            str(fault))
         else:
             return (client, key)
 
     def verify_Promote_channels(self, client, key, source, destination):
         """Make sure the source and destination channels both exist"""
-        pass
+        not_found = []
+        try:
+            _source = client.channel.software.getDetails(key, source)
+        except xmlrpclib.Fault:
+            not_found.append("Source: %s" % source)
+
+        try:
+            _dest = client.channel.software.getDetails(key, destination)
+        except xmlrpclib.Fault:
+            not_found.append("Destination: %s" % source)
+
+        if not_found:
+            raise Satellite5WorkerError("Could not locate channel(s): %s" %
+                                        ",".join(not_found))
+        else:
+            return True
 
     def do_Promote_channel_merge(self, client, key, source, destination):
         """Merge the contents of `source` channel into `destination` channel"""
