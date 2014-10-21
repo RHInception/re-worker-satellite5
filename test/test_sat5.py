@@ -309,6 +309,10 @@ class TestSat5Worker(TestCase):
 
             self.assertTrue(found_channels)
 
+            # TODO:
+            #
+            # verify the call args
+
     def test_verify_source_channel_bad(self):
         """We notice when source/dest channels don't exist"""
         key = "sessionKeyString"
@@ -342,12 +346,84 @@ class TestSat5Worker(TestCase):
                 found_channels = worker.verify_Promote_channels(client, key,
                                                                 'sourcechannel',
                                                                 'destchannel')
+            # TODO:
+            #
+            # verify the call args
 
     def test_merge_packages_good(self):
-        pass
+        """We can merge channels properly"""
+        key = "sessionKeyString"
+        client = mock.MagicMock()
+        example_package = {'package': 'name'}
+
+        # client.channel
+        channel = mock.MagicMock()
+        client.channel = channel
+
+        # client.channel.software
+        software = mock.MagicMock()
+        channel.software = software
+
+        # client.channel.software.mergePackages()
+        #
+        # - mergePackages returns a list of dicts's, each dict is a
+        # - package which was promoted
+        mergePackages = mock.Mock(return_value=[example_package])
+        software.mergePackages = mergePackages
+
+        with nested(
+                mock.patch('pika.SelectConnection'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.notify'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.send')):
+
+            worker = satellite5worker.Satellite5Worker(
+                MQ_CONF,
+                logger=self.app_logger)
+            worker._on_open(self.connection)
+            worker._on_channel_open(self.channel)
+
+            result = worker.do_Promote_channel_merge(client, key,
+                                            'sourcechannel', 'destchannel')
+            # one package was 'promoted'
+            self.assertEqual(result, 1)
+            mergePackages.assert_called_once_with('sourcechannel', 'destchannel')
 
     def test_merge_packages_bad(self):
-        pass
+        """We notice when merging the channels fails"""
+        key = "sessionKeyString"
+        client = mock.MagicMock()
+
+        # client.channel
+        channel = mock.MagicMock()
+        client.channel = channel
+
+        # client.channel.software
+        software = mock.MagicMock()
+        channel.software = software
+
+        # client.channel.software.mergePackages()
+        #
+        # - mergePackages returns a list of dicts's, each dict is a
+        # - package which was promoted
+        mergePackages = mock.Mock()
+        mergePackages.side_effect = xmlrpclib.Fault(1234, 'Could not merge channels')
+        software.mergePackages = mergePackages
+
+        with nested(
+                mock.patch('pika.SelectConnection'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.notify'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.send')):
+
+            worker = satellite5worker.Satellite5Worker(
+                MQ_CONF,
+                logger=self.app_logger)
+            worker._on_open(self.connection)
+            worker._on_channel_open(self.channel)
+
+            with self.assertRaises(satellite5worker.Satellite5WorkerError):
+                result = worker.do_Promote_channel_merge(client, key,
+                                                         'sourcechannel', 'destchannel')
+            mergePackages.assert_called_once_with('sourcechannel', 'destchannel')
 
     def test_close_client_good(self):
         pass
