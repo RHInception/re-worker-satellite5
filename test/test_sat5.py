@@ -203,17 +203,26 @@ class TestSat5Worker(TestCase):
             with self.assertRaises(satellite5worker.Satellite5WorkerError):
                 result_bad = worker.verify_Promote_params(bad_dynamic_params)
 
-    def test_open_xmlrpc_connection(self):
+    def test_open_client_good(self):
         pass
 
-    def test_verify_source_channel(self):
+    def test_open_client_bad(self):
         pass
 
-    def test_verify_target_channel(self):
+    def test_verify_source_channel_good(self):
         pass
 
-    def test_merge_packages(self):
+    def test_verify_source_channel_bad(self):
         pass
 
-    def test_logout(self):
+    def test_merge_packages_good(self):
+        pass
+
+    def test_merge_packages_bad(self):
+        pass
+
+    def test_close_client_good(self):
+        pass
+
+    def test_close_client_bad(self):
         pass

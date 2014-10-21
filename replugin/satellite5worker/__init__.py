@@ -157,7 +157,6 @@ Promote parameters.
             # Output to the general logger (taboot tailer perhaps)
             output.info('Satellite 5 worker finished promoting channel contents')
 
-
         except Satellite5WorkerError, s5we:
             # If an error happens send a failure and log it to stdout
             self.app_logger.error('Failure: %s' % s5we)
