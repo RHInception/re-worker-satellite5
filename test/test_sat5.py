@@ -20,9 +20,9 @@ import xmlrpclib
 import mock
 
 from . import TestCase
+from contextlib import nested
 
 from replugin import satellite5worker
-
 
 MQ_CONF = {
     'server': '127.0.0.1',
@@ -34,4 +34,108 @@ MQ_CONF = {
 
 
 class TestSat5Worker(TestCase):
-    pass
+    def setUp(self):
+        """Set up some reusable mocks and vars"""
+        self.config_good = {
+            "queue": "satellite5",
+            "satellite_url": "https://satellite.example.com/rpc/api",
+            "satellite_login": "username",
+            "satellite_password": "password"
+        }
+
+        self.config_bad = {
+            "queue": "satellite5"
+        }
+
+        # server connection
+        # self.client = mock.MagicMock('xmlrpclib.Server')
+
+        # self.key = self.client.
+        # channel lookup
+
+        # Misc MQ Stuff
+        self.channel = mock.MagicMock('pika.spec.Channel')
+
+        self.channel.basic_consume = mock.Mock('basic_consume')
+        self.channel.basic_ack = mock.Mock('basic_ack')
+        self.channel.basic_publish = mock.Mock('basic_publish')
+
+        self.basic_deliver = mock.MagicMock()
+        self.basic_deliver.delivery_tag = 123
+
+        self.properties = mock.MagicMock(
+            'pika.spec.BasicProperties',
+            correlation_id=123,
+            reply_to='me')
+
+        self.logger = mock.MagicMock('logging.Logger').__call__()
+        self.app_logger = mock.MagicMock('logging.Logger').__call__()
+        self.connection = mock.MagicMock('pika.SelectConnection')
+
+    def tearDown(self):
+        """
+        After every test.
+        """
+        TestCase.tearDown(self)
+        self.channel.reset_mock()
+        self.channel.basic_consume.reset_mock()
+        self.channel.basic_ack.reset_mock()
+        self.channel.basic_publish.reset_mock()
+
+        self.basic_deliver.reset_mock()
+        self.properties.reset_mock()
+
+        self.logger.reset_mock()
+        self.app_logger.reset_mock()
+        self.connection.reset_mock()
+
+    def test_verify_satellite_config_good(self):
+        with nested(
+                mock.patch('pika.SelectConnection'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.notify'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.send')):
+
+            worker = satellite5worker.Satellite5Worker(
+                MQ_CONF,
+                logger=self.app_logger)
+            worker._on_open(self.connection)
+            worker._on_channel_open(self.channel)
+
+            config_good = worker.verify_config(self.config_good)
+            self.assertEqual(config_good, True)
+
+    def test_verify_satellite_config_bad(self):
+        with nested(
+                mock.patch('pika.SelectConnection'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.notify'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.send')):
+
+            worker = satellite5worker.Satellite5Worker(
+                MQ_CONF,
+                logger=self.app_logger)
+            worker._on_open(self.connection)
+            worker._on_channel_open(self.channel)
+
+            config_bad = worker.verify_config(self.config_bad)
+            self.assertEqual(config_bad, False)
+
+    def test_verify_subcommand(self):
+        pass
+
+    def test_verify_subcommand_parameters(self):
+        pass
+
+    def test_open_xmlrpc_connection(self):
+        pass
+
+    def test_verify_source_channel(self):
+        pass
+
+    def test_verify_target_channel(self):
+        pass
+
+    def test_merge_packages(self):
+        pass
+
+    def test_logout(self):
+        pass

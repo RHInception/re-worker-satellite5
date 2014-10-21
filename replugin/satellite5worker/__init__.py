@@ -18,7 +18,6 @@ Satellite 5 worker.
 """
 
 import xmlrpclib
-import os
 
 from reworker.worker import Worker
 
@@ -37,7 +36,126 @@ class Satellite5Worker(Worker):
 
     #: allowed subcommands
     subcommands = ('Promote', )
-    dynamic = []
+    dynamic = ['promote_from_label', 'promote_to_label']
+    required_config_params = ['satellite_url', 'satellite_login', 'satellite_password']
+
+    """
+    Need to:
+        Load up the config variables from the json file
+
+        Verify valid subcommand
+
+        Verify subcmd parameters
+
+        Open connection to remote server
+
+        Verify source and target channels exist
+
+        Merge contents of source into target
+
+        Return result
+    """
+    def verify_config(self, config):
+        """Verify that all required parameters are set in our config file"""
+        for key in self.required_config_params:
+            if key not in config:
+                # Missing key
+                return False
+
+        if config['satellite_url'].startswith('http://') or \
+           config['satellite_url'].startswith('https://'):
+            pass
+        else:
+            # That probably is not a valid endpoint
+            return False
+
+        # Everything checks out. Config is valid.
+        return True
+
+    def verify_subcommand(self, parameters):
+        """Verify we were supplied with a valid subcommand"""
+        subcmd = parameters.get('command', None)
+        if subcmd not in self.self.subcommands:
+            return False
+        else:
+            return True
+
+    def verify_Promote_params(self, params):
+        """Verify the Promote subcommand was provided all of the the required
+parameters
+
+Note: we only expect this worker to support promoting one repository
+(copying the contents of) into another. Given that, this method will
+break if a new subcommand has dynamic parameters that don't match the
+Promote parameters.
+        """
+        for key in self.dynamic:
+            if key not in params:
+                # Required key not provided
+                return False
+
+        # Got everything we need
+        return True
+
+    def parse_args(self):
+        subcommand = str(body['parameters']['subcommand'])
+        if subcommand not in self.subcommands:
+            raise Satellite5WorkerError(
+                'No valid subcommand given. Nothing to do!')
+
+        if subcommand == 'Promote':
+            pass
+
+            # if subcommand == 'CherryPickMerge':
+            #     self.app_logger.info(
+            #         'Executing subcommand %s for correlation_id %s' % (
+            #             subcommand, corr_id))
+            #     result = self.cherry_pick_merge(body, corr_id, output)
+            # else:
+            #     self.app_logger.warn(
+            #         'Could not the implementation of subcommand %s' % (
+            #             subcommand))
+            #     raise GitWorkerError('No subcommand implementation')
+
+            # # send results back
+            # self.send(
+            #     properties.reply_to,
+            #     corr_id,
+            #     result,
+            #     exchange=''
+            # )
+
+            # # Notify on result. Not required but nice to do.
+            # self.notify(
+            #
+
+            # 'GitWorker Executed Successfully',
+            #     'GitWorker successfully executed %s. See logs.' % (
+            #         subcommand),
+            #     'completed',
+            #     corr_id)
+
+            # # Send out responses
+            # self.app_logger.info(
+            #     'GitWorker successfully executed %s for '
+            #     'correlation_id %s. See logs.' % (
+            #         subcommand, corr_id))
+
+        # except GitWorkerError, fwe:
+        #     # If a GitWorkerError happens send a failure log it.
+        #     self.app_logger.error('Failure: %s' % fwe)
+        #     self.send(
+        #         properties.reply_to,
+        #         corr_id,
+        #         {'status': 'failed'},
+        #         exchange=''
+        #     )
+        #     self.notify(
+        #         'GitWorker Failed',
+        #         str(fwe),
+        #         'failed',
+        #         corr_id)
+        #     output.error(str(fwe))
 
     def process(self, channel, basic_deliver, properties, body, output):
         """
@@ -49,73 +167,6 @@ class Satellite5Worker(Worker):
         # Ack the original message
         self.ack(basic_deliver)
         corr_id = str(properties.correlation_id)
-
-        # Need to:
-        #
-        # Load up the config variables from the json file
-        #
-        # Verify valid subcommand
-        #
-        # 
-
-
-        try:
-            try:
-                subcommand = str(body['parameters']['subcommand'])
-                if subcommand not in self.subcommands:
-                    raise KeyError()
-            except KeyError:
-                raise GitWorkerError(
-                    'No valid subcommand given. Nothing to do!')
-
-            if subcommand == 'CherryPickMerge':
-                self.app_logger.info(
-                    'Executing subcommand %s for correlation_id %s' % (
-                        subcommand, corr_id))
-                result = self.cherry_pick_merge(body, corr_id, output)
-            else:
-                self.app_logger.warn(
-                    'Could not the implementation of subcommand %s' % (
-                        subcommand))
-                raise GitWorkerError('No subcommand implementation')
-
-            # Send results back
-            self.send(
-                properties.reply_to,
-                corr_id,
-                result,
-                exchange=''
-            )
-
-            # Notify on result. Not required but nice to do.
-            self.notify(
-                'GitWorker Executed Successfully',
-                'GitWorker successfully executed %s. See logs.' % (
-                    subcommand),
-                'completed',
-                corr_id)
-
-            # Send out responses
-            self.app_logger.info(
-                'GitWorker successfully executed %s for '
-                'correlation_id %s. See logs.' % (
-                    subcommand, corr_id))
-
-        except GitWorkerError, fwe:
-            # If a GitWorkerError happens send a failure log it.
-            self.app_logger.error('Failure: %s' % fwe)
-            self.send(
-                properties.reply_to,
-                corr_id,
-                {'status': 'failed'},
-                exchange=''
-            )
-            self.notify(
-                'GitWorker Failed',
-                str(fwe),
-                'failed',
-                corr_id)
-            output.error(str(fwe))
 
 
 def main():  # pragma: no cover
