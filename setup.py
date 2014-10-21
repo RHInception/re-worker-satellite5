@@ -27,7 +27,7 @@ except ImportError:
 
 setup(
     name='reworkersatellite5',
-    version='0.0.1',
+    version='0.1.0',
     description='',
     author='See AUTHORS file',
     author_email='inception@redhat.com',

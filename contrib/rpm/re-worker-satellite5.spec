@@ -9,7 +9,7 @@
 
 Name: re-worker-satellite5
 Summary: Winternewt Satellite5 Worker
-Version: 0.0.1
+Version: 0.1.0
 Release: 1%{?dist}
 
 Group: Applications/System
@@ -37,11 +37,14 @@ Satellite 5.
 %{__python2} setup.py install -O1 --root=$RPM_BUILD_ROOT --record=re-worker-satellite5-files.txt
 
 %files -f re-worker-satellite5-files.txt
+%defattr(-, root, root)
 %doc README.md LICENSE AUTHORS
 %dir %{python2_sitelib}/%{_pkg_name}
 %exclude %{python2_sitelib}/%{_pkg_name}/__init__.py*
 
 %changelog
+* Tue Oct 21 2014 Tim Bielawa <tbielawa@redhat.com> - 0.1.0-1
+- Code-complete
+
 * Mon Oct 20 2014 Tim Bielawa <tbielawa@redhat.com> - 0.0.1-1
 - First release
-
