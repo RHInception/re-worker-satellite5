@@ -47,6 +47,12 @@ class TestSat5Worker(TestCase):
             "queue": "satellite5"
         }
 
+        self.config_auth_bad = {
+            "satellite_url": "https://satellite.example.com/rpc/api",
+            "satellite_login": "usernamebad",
+            "satellite_password": "passwordbad"
+        }
+
         # server connection
         # self.client = mock.MagicMock('xmlrpclib.Server')
 
@@ -236,12 +242,38 @@ class TestSat5Worker(TestCase):
             xmlserver.asser_called_once_with(self.config_good['satellite_url'])
             login.asser_called_once_with('username', 'password')
 
-    def test_open_client_bad(self):
+    @mock.patch('replugin.satellite5worker.xmlrpclib.Server')
+    def test_open_client_bad(self, xmlserver):
         """Failing to connect raises an exception"""
-        # set a side effect on the xmlrpclib.Server method to raise an xmlrpclib.Fault exception
-        #
-        # e.faultcode for auth fail = 2950
-        pass
+        session_string = "sessionKeyString"
+        # client.auth
+        auth = mock.MagicMock()
+        # client.auth.login
+        login = mock.Mock(return_value=session_string)
+        auth.login = login
+
+        # client = xmlrpclib.Server()
+        client = mock.MagicMock()
+        client.auth = auth
+
+        # xmlrpclib.Server()
+        xmlserver.return_value = client
+
+        with nested(
+                mock.patch('pika.SelectConnection'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.notify'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.send')):
+
+            worker = satellite5worker.Satellite5Worker(
+                MQ_CONF,
+                logger=self.app_logger)
+            worker._on_open(self.connection)
+            worker._on_channel_open(self.channel)
+
+            # e.faultcode for auth fail = 2950
+            client.auth.login.side_effect = xmlrpclib.Fault(2950, "Authentication error")
+            with self.assertRaises(satellite5worker.Satellite5WorkerError):
+                (client, key) = worker.open_client(self.config_auth_bad)
 
     def test_verify_source_channel_good(self):
         pass

@@ -89,8 +89,12 @@ Promote parameters.
             key = client.auth.login(config['satellite_login'], config['satellite_password'])
             # print key
         except xmlrpclib.Fault, fault:
-            raise Satellite5WorkerError("Error connecting to Satellite server: %s" %
-                                        str(fault))
+            if fault.faultCode == 2950:
+                raise Satellite5WorkerError("Could not authenticate with the Satellite server: %s" %
+                                            str(fault))
+            else:
+                raise Satellite5WorkerError("Error connecting to the Satellite server: %s" %
+                            str(fault))
         else:
             return (client, key)
 
