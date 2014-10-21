@@ -426,7 +426,59 @@ class TestSat5Worker(TestCase):
             mergePackages.assert_called_once_with('sourcechannel', 'destchannel')
 
     def test_close_client_good(self):
-        pass
+        """We can successfully close the client connection"""
+        session_string = "sessionKeyString"
+        # client.auth
+        auth = mock.MagicMock()
+        # client.auth.login
+        logout = mock.Mock(return_value=session_string)
+        auth.logout = logout
+
+        # client = xmlrpclib.Server()
+        client = mock.MagicMock()
+        client.auth = auth
+
+        with nested(
+                mock.patch('pika.SelectConnection'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.notify'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.send')):
+
+            worker = satellite5worker.Satellite5Worker(
+                MQ_CONF,
+                logger=self.app_logger)
+            worker._on_open(self.connection)
+            worker._on_channel_open(self.channel)
+
+            result = worker.close_client(client, session_string)
+            self.assertTrue(result)
+            logout.asser_called_once_with(session_string)
 
     def test_close_client_bad(self):
-        pass
+        """We notice if there's an issue closing the connection"""
+        session_string = "sessionKeyString"
+        # client.auth
+        auth = mock.MagicMock()
+        # client.auth.login
+        logout = mock.Mock(return_value=session_string)
+        logout.side_effect = Exception("HORRRRKK")
+        auth.logout = logout
+
+        # client = xmlrpclib.Server()
+        client = mock.MagicMock()
+        client.auth = auth
+
+        with nested(
+                mock.patch('pika.SelectConnection'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.notify'),
+                mock.patch('replugin.satellite5worker.Satellite5Worker.send')):
+
+            worker = satellite5worker.Satellite5Worker(
+                MQ_CONF,
+                logger=self.app_logger)
+            worker._on_open(self.connection)
+            worker._on_channel_open(self.channel)
+
+            with self.assertRaises(satellite5worker.Satellite5WorkerError):
+                result = worker.close_client(client, session_string)
+
+            logout.asser_called_once_with(session_string)

@@ -125,13 +125,17 @@ Returns the count of the number of packages promoted"""
             result = client.channel.software.mergePackages(source, destination)
         except xmlrpclib.Fault, fault:
             raise Satellite5WorkerError("Could not promote: %s" % str(fault))
-
         else:
             return len(result)
 
     def close_client(self, client, key):
         """Logout and destroy the XMLRPC client"""
-        pass
+        try:
+            client.auth.logout(key)
+        except Exception, e:
+            raise Satellite5WorkerError("Unknown error while logging out: %s" % str(e))
+        else:
+            return True
 
     def process(self, channel, basic_deliver, properties, body, output):
         """Processes Sat5 requests from the bus.
