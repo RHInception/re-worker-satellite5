@@ -47,17 +47,17 @@ class TestSat5Worker(TestCase):
             "queue": "satellite5"
         }
 
+        self.config_bad_url = {
+            "satellite_url": "httpderp://satellite.example.com/rpc/api",
+            "satellite_login": "username",
+            "satellite_password": "password"
+        }
+
         self.config_auth_bad = {
             "satellite_url": "https://satellite.example.com/rpc/api",
             "satellite_login": "usernamebad",
             "satellite_password": "passwordbad"
         }
-
-        # server connection
-        # self.client = mock.MagicMock('xmlrpclib.Server')
-
-        # self.key = self.client.
-        # channel lookup
 
         # Misc MQ Stuff
         self.channel = mock.MagicMock('pika.spec.Channel')
@@ -123,6 +123,9 @@ class TestSat5Worker(TestCase):
             worker._on_channel_open(self.channel)
 
             config_bad = worker.verify_config(self.config_bad)
+            self.assertFalse(config_bad)
+
+            config_bad_url = worker.verify_config(self.config_bad_url)
             self.assertFalse(config_bad)
 
     def test_verify_subcommand_good(self):
@@ -271,7 +274,13 @@ class TestSat5Worker(TestCase):
             worker._on_channel_open(self.channel)
 
             # e.faultcode for auth fail = 2950
-            client.auth.login.side_effect = xmlrpclib.Fault(2950, "Authentication error")
+            client.auth.login.side_effect = [
+                xmlrpclib.Fault(2950, "Authentication error"),
+                xmlrpclib.Fault(1234, "Other error")
+            ]
+            with self.assertRaises(satellite5worker.Satellite5WorkerError):
+                (client, key) = worker.open_client(self.config_auth_bad)
+
             with self.assertRaises(satellite5worker.Satellite5WorkerError):
                 (client, key) = worker.open_client(self.config_auth_bad)
 
