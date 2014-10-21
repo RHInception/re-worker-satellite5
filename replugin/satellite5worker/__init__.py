@@ -39,22 +39,6 @@ class Satellite5Worker(Worker):
     dynamic = ['promote_from_label', 'promote_to_label']
     required_config_params = ['satellite_url', 'satellite_login', 'satellite_password']
 
-    """
-    Need to:
-        Load up the config variables from the json file
-
-        Verify valid subcommand
-
-        Verify subcmd parameters
-
-        Open connection to remote server
-
-        Verify source and target channels exist
-
-        Merge contents of source into target
-
-        Return result
-    """
     def verify_config(self, config):
         """Verify that all required parameters are set in our config file"""
         for key in self.required_config_params:
@@ -74,7 +58,7 @@ class Satellite5Worker(Worker):
 
     def verify_subcommand(self, parameters):
         """Verify we were supplied with a valid subcommand"""
-        subcmd = parameters.get('command', None)
+        subcmd = parameters.get('subcommand', None)
         if subcmd not in self.self.subcommands:
             return False
         else:
@@ -97,76 +81,77 @@ Promote parameters.
         # Got everything we need
         return True
 
-    def parse_args(self):
-        subcommand = str(body['parameters']['subcommand'])
-        if subcommand not in self.subcommands:
-            raise Satellite5WorkerError(
-                'No valid subcommand given. Nothing to do!')
+    def open_client(self, config):
+        """Create an XMLRPC client to communicate to the Satellite server with"""
+        pass
 
-        if subcommand == 'Promote':
-            pass
+    def verify_Promote_channels(self, client, key, source, destination):
+        """Make sure the source and destination channels both exist"""
+        pass
 
-            # if subcommand == 'CherryPickMerge':
-            #     self.app_logger.info(
-            #         'Executing subcommand %s for correlation_id %s' % (
-            #             subcommand, corr_id))
-            #     result = self.cherry_pick_merge(body, corr_id, output)
-            # else:
-            #     self.app_logger.warn(
-            #         'Could not the implementation of subcommand %s' % (
-            #             subcommand))
-            #     raise GitWorkerError('No subcommand implementation')
+    def do_Promote_channel_merge(self, client, key, source, destination):
+        """Merge the contents of `source` channel into `destination` channel"""
+        pass
 
-            # # send results back
-            # self.send(
-            #     properties.reply_to,
-            #     corr_id,
-            #     result,
-            #     exchange=''
-            # )
-
-            # # Notify on result. Not required but nice to do.
-            # self.notify(
-            #
-
-            # 'GitWorker Executed Successfully',
-            #     'GitWorker successfully executed %s. See logs.' % (
-            #         subcommand),
-            #     'completed',
-            #     corr_id)
-
-            # # Send out responses
-            # self.app_logger.info(
-            #     'GitWorker successfully executed %s for '
-            #     'correlation_id %s. See logs.' % (
-            #         subcommand, corr_id))
-
-        # except GitWorkerError, fwe:
-        #     # If a GitWorkerError happens send a failure log it.
-        #     self.app_logger.error('Failure: %s' % fwe)
-        #     self.send(
-        #         properties.reply_to,
-        #         corr_id,
-        #         {'status': 'failed'},
-        #         exchange=''
-        #     )
-        #     self.notify(
-        #         'GitWorker Failed',
-        #         str(fwe),
-        #         'failed',
-        #         corr_id)
-        #     output.error(str(fwe))
+    def close_client(self, client, key):
+        """Logout and destroy the XMLRPC client"""
+        pass
 
     def process(self, channel, basic_deliver, properties, body, output):
-        """
-        Processes Sat5 requests from the bus.
+        """Processes Sat5 requests from the bus.
 
-        *Keys Requires*:
-            * subcommand: the subcommand to execute.
+        Verify we have eveything we need to do the needful. Then setup
+        the xmlrpc client. Then start doing the needful.
+
+        This assumes we still have just one subcommand, promote
         """
         # Ack the original message
         self.ack(basic_deliver)
         corr_id = str(properties.correlation_id)
+
+        try:
+            # Load up the config variables from the json file
+            self.verify_config(self._config)
+
+            # Verify valid subcommand
+            self.verify_subcommand(body['parameters'])
+
+            # Verify subcmd parameters
+            self.verify_Promote_params(body['parameters'])
+
+            # Open connection to remote server and log into it
+            (client, key) = self.open_client(self._config)
+
+            # Verify source and target channels exist
+            source_channel = body['parameters']['promote_from_label']
+            dest_channel = body['parameters']['promote_to_label']
+            self.verify_Promote_channels(client, key, source_channel, dest_channel)
+
+            # Merge contents of source into target
+            self.do_Promote_channel_merge(client, key, source_channel, dest_channel)
+
+            # Logout
+            self.close_client(client, key)
+            # Return result
+
+        except Satellite5WorkerError, s5we:
+            # If an error happens send a failure and log it to stdout
+            self.app_logger.error('Failure: %s' % s5we)
+            # Send a message to the FSM indicating a failure event took place
+            self.send(
+                properties.reply_to,
+                corr_id,
+                {'status': 'failed'},
+                exchange=''
+            )
+            # Notify over various other comm channels about the event
+            self.notify(
+                'Satellite 5 Worker Failed',
+                str(s5we),
+                'failed',
+                corr_id)
+            # Output to the general logger (taboot tailer perhaps)
+            output.error(str(s5we))
 
 
 def main():  # pragma: no cover
