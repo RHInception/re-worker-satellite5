@@ -122,7 +122,7 @@ Promote parameters.
 
 Returns the count of the number of packages promoted"""
         try:
-            result = client.channel.software.mergePackages(source, destination)
+            result = client.channel.software.mergePackages(key, source, destination)
         except xmlrpclib.Fault, fault:
             raise Satellite5WorkerError("Could not promote: %s" % str(fault))
         else:

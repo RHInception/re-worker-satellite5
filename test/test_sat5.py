@@ -390,7 +390,7 @@ class TestSat5Worker(TestCase):
                                                      'sourcechannel', 'destchannel')
             # one package was 'promoted'
             self.assertEqual(result, 1)
-            mergePackages.assert_called_once_with('sourcechannel', 'destchannel')
+            mergePackages.assert_called_once_with(key, 'sourcechannel', 'destchannel')
 
     def test_merge_packages_bad(self):
         """We notice when merging the channels fails"""
