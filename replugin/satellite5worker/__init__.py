@@ -46,15 +46,10 @@ class Satellite5Worker(Worker):
                 # Missing key
                 return False
 
-        if config['satellite_url'].startswith('http://') or \
-           config['satellite_url'].startswith('https://'):
-            pass
-        else:
-            # That probably is not a valid endpoint
-            return False
-
-        # Everything checks out. Config is valid.
-        return True
+        # If it doesn't start with http/s then it is not a valid endpoint
+        # If it does, then this will return True
+        return (config['satellite_url'].startswith('http://') or
+                config['satellite_url'].startswith('https://'))
 
     def verify_subcommand(self, parameters):
         """Verify we were supplied with a valid subcommand"""
@@ -131,7 +126,7 @@ Returns the count of the number of packages promoted"""
     def close_client(self, client, key):
         """Logout and destroy the XMLRPC client"""
         try:
-            client.auth.logout(key)
+            client.auth.logout(key)  # NOTE: This may leave a session "open" on error.
         except Exception, e:
             raise Satellite5WorkerError("Unknown error while logging out: %s" % str(e))
         else:

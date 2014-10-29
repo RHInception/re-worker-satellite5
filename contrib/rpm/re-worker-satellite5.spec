@@ -10,7 +10,7 @@
 Name: re-worker-satellite5
 Summary: Winternewt Satellite5 Worker
 Version: 0.1.0
-Release: 2%{?dist}
+Release: 3%{?dist}
 
 Group: Applications/System
 License: AGPLv3
@@ -43,6 +43,9 @@ Satellite 5.
 %exclude %{python2_sitelib}/%{_pkg_name}/__init__.py*
 
 %changelog
+* Wed Oct 29 2014 Tim Bielawa <tbielawa@redhat.com> - 0.1.0-3
+- Minor syntax changes from code review
+
 * Thu Oct 23 2014 Tim Bielawa <tbielawa@redhat.com> - 0.1.0-2
 - Fix missing 'session key' parameter in mergePackages call
 
